@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>やすまろ君（試作v4）</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
+         background: #20242b; color: #f5f0e6; display: flex; flex-direction: column;
+         height: 100dvh; overflow: hidden; }
+  header { flex: none; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;
+           background: #171a1f; border-bottom: 2px solid #c9a227; }
+  header .name { font-size: 20px; font-weight: 800; color: #e8c85a; }
+  header .sub { font-size: 12px; color: #aaa; }
+  .stage { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+           justify-content: center; gap: 8px; padding: 8px; }
+  .facewrap { animation: breathe 5s ease-in-out infinite; }
+  .facewrap.speaking { animation: bob .45s ease-in-out infinite alternate; }
+  @keyframes breathe { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.008); } }
+  @keyframes bob { from { transform: translateY(0) rotate(-.5deg); } to { transform: translateY(3px) rotate(.5deg); } }
+  svg.face { height: min(32vh, 280px); width: auto; max-width: 84vw; display: block; }
+  .eye { transform-origin: center; transform-box: fill-box; animation: blink 4.8s ease-in-out infinite; }
+  @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 93.5% { transform: scaleY(0.06); } 97% { transform: scaleY(1); } }
+  .bubble { flex: none; max-width: 640px; width: 94%; min-height: 60px; max-height: 24vh; overflow-y: auto; background: #fff; color: #222; border-radius: 14px;
+            padding: 11px 14px; font-size: 16.5px; line-height: 1.5; position: relative; }
+  .bubble:after { content: ""; position: absolute; top: -10px; left: 50%; margin-left: -10px;
+                  border: 10px solid transparent; border-bottom-color: #fff; border-top: 0; }
+  .controls { flex: none; position: relative; z-index: 3; background: #171a1f; border-top: 1px solid #333; padding-bottom: env(safe-area-inset-bottom); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 8px 10px 0; }
+  .row:last-child { padding-bottom: 10px; }
+  button { font: inherit; font-size: 16px; font-weight: 700; padding: 13px 16px; border: 0; border-radius: 12px;
+           background: #333a45; color: #f5f0e6; cursor: pointer; }
+  button:active { transform: scale(0.97); }
+  button.gold { background: #c9a227; color: #1c1c1c; }
+  button.red { background: #b03a2e; color: #fff; }
+  .talk { background: #b03a2e; color: #fff; font-size: 19px; padding: 17px 30px; border-radius: 999px;
+          box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+  .talk.rec { background: #e8c85a; color: #1c1c1c; }
+  .note { font-size: 11.5px; color: #8b8b8b; text-align: center; padding: 8px 12px 2px; }
+  select { font: inherit; font-size: 15px; padding: 10px; border-radius: 10px; }
+  .draft { flex: none; max-width: 640px; width: 94%; background: #fffdf4; color: #222; border: 2px solid #c9a227;
+           border-radius: 14px; padding: 11px 14px; font-size: 16px; line-height: 1.5; }
+  .draft .dtitle { font-weight: 800; margin-bottom: 6px; }
+  .draft .dtotal { font-weight: 800; text-align: right; margin-top: 6px; }
+  @media (max-height: 640px) { svg.face { height: 23vh; } .bubble { font-size: 15px; max-height: 20vh; } }
+</style>
+</head>
+<body>
+<header>
+  <div><span class="name">やすまろ君</span> <span class="sub">焼鳥やすまろ 接客アバター（試作v4）</span></div>
+  <div>
+    <label class="sub" for="tableSel">席</label>
+    <select id="tableSel">
+      <option>カウンター1</option><option>カウンター2</option><option>カウンター3</option><option>カウンター4</option><option>カウンター5</option>
+      <option>テーブル1</option><option>テーブル2</option>
+    </select>
+    <label class="sub" for="persona">キャラ</label>
+    <select id="persona">
+      <option value="normal">標準</option>
+      <option value="katabutsu">堅物</option>
+      <option value="ojisan">ノリの良いおじさん</option>
+    </select>
+  </div>
+</header>
+
+<div class="stage">
+  <div class="facewrap" id="facewrap">
+  <svg class="face" viewBox="0 0 300 300" aria-label="やすまろ君の顔">
+    <circle cx="150" cy="158" r="112" fill="#f6cfa5" stroke="#d9a05b" stroke-width="3"/>
+    <path d="M38 118 Q150 52 262 118 L262 88 Q150 26 38 88 Z" fill="#f5f0e6" stroke="#c9a227" stroke-width="3"/>
+    <text x="150" y="96" text-anchor="middle" font-size="25" font-weight="800" fill="#b03a2e">やすまろ</text>
+    <ellipse class="eye" cx="106" cy="150" rx="11" ry="15" fill="#26221e"/>
+    <ellipse class="eye" cx="194" cy="150" rx="11" ry="15" fill="#26221e"/>
+    <path d="M84 128 Q106 116 128 128" stroke="#26221e" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M172 128 Q194 116 216 128" stroke="#26221e" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="76" cy="188" rx="15" ry="9" fill="#f2a18c" opacity="0.7"/>
+    <ellipse cx="224" cy="188" rx="15" ry="9" fill="#f2a18c" opacity="0.7"/>
+    <ellipse id="mouth" cx="150" cy="206" rx="20" ry="6" fill="#7a3b2e"/>
+    <path d="M128 250 Q150 240 172 250" stroke="#d9a05b" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>
+  </div>
+  <div class="bubble" id="bubble">下の赤いボタンから、話しかけてみてください。注文もできます。</div>
+  <div class="draft" id="draftCard" style="display:none">
+    <div class="dtitle">ご注文の確認</div>
+    <div id="draftItems"></div>
+    <div class="dtotal" id="draftTotal"></div>
+    <div class="row" style="padding:8px 0 0">
+      <button class="gold" id="placeBtn" onclick="YK.place()">この内容で注文する</button>
+      <button onclick="YK.dropDraft()">やめる</button>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="row">
+    <button class="talk" id="talkBtn" onclick="YK.talk()">🎤 話しかける</button>
+    <button class="red" onclick="YK.stop()">止める</button>
+  </div>
+  <div class="row">
+    <input type="text" id="chatText" placeholder="ここに打っても話せます" style="flex:1;max-width:430px;font:inherit;font-size:16px;padding:12px;border-radius:12px;border:1px solid #555;background:#262b33;color:#f5f0e6">
+    <button class="gold" onclick="YK.sendText()">送信</button>
+  </div>
+  <div class="row">
+    <button class="gold" onclick="YK.say('greet')">いらっしゃいませ</button>
+    <button onclick="YK.say('recommend')">おすすめは？</button>
+    <button onclick="YK.say('plan')">プランの説明</button>
+    <button onclick="YK.say('chat')">雑談</button>
+    <button onclick="YK.say('reserve')">予約の案内</button>
+    <button onclick="YK.say('english')">English</button>
+  </div>
+  <div class="note">音声は端末の読み上げ機能を使います（月額0円）。声が出ない時は端末の音量をご確認ください。聞き取りはChrome系ブラウザが得意です。</div>
+</div>
+
+<script>
+"use strict";
+var TEXTS = {
+  normal: {
+    greet: "いらっしゃいませ、焼鳥やすまろへようこそ。ご注文は、各テーブルのQRコードからお願いします。おすすめやプランの説明もできますので、気軽に声をかけてください。",
+    recommend: "おすすめは、焼鳥のせせりとつくねです。一本ずつ、タレか塩で選べます。お酒は、日本酒の賀茂鶴、680円がよく出ています。",
+    plan: "飲み放題プランは4つあります。2,500円は、焼鳥5本盛りと、サムギョプサルハーフの2種類。4,000円は、焼鳥コース全9品と、サムギョプサルコース全8品です。飲み放題は、ラストオーダー90分、120分制です。",
+    reserve: "ご予約は、お電話 06-6468-2271 でも、画面の予約フォームからでも承ります。当日のご予約もお気軽にどうぞ。",
+    thanks: "ありがとうございます。またのお越しをお待ちしています。",
+    hours: "営業時間や定休日は、店主の古賀にご確認ください。電話は 06-6468-2271 です。",
+    fallback: "すみません、よく聞き取れませんでした。おすすめ、プラン、予約、雑談、のどれかで聞いてみてください。"
+  },
+  katabutsu: {
+    greet: "いらっしゃいませ。焼鳥やすまろに、ようこそお越しくださいました。ご注文は、各テーブルのQRコードよりお願い申し上げます。",
+    recommend: "当店のおすすめは、焼鳥のせせり、つくねでございます。一本単位で、タレ、塩をお選びいただけます。日本酒は賀茂鶴、680円をご用意しております。",
+    plan: "飲み放題プランは4種類ございます。2,500円が2種類、4,000円のコースが2種類でございます。飲み放題は、ラストオーダー90分、120分制となっております。ご不明点は、店主までお申し付けください。",
+    reserve: "ご予約は、お電話 06-6468-2271 にて承っております。何卒よろしくお願い申し上げます。",
+    thanks: "誠にありがとうございました。またのお越しを、心よりお待ち申し上げております。",
+    hours: "営業時間、定休日につきましては、店主までお問い合わせください。お電話は 06-6468-2271 でございます。",
+    fallback: "申し訳ございません。恐れ入りますが、もう一度お願いできますでしょうか。"
+  },
+  ojisan: {
+    greet: "まいど！焼鳥やすまろへようこそやで。注文はテーブルのQRコードから頼むわ。分からんかったら、ワイに聞いてや。",
+    recommend: "おすすめはせせりとつくねや。一本から頼めるさかい、タレと塩、両方いっとこ。酒は賀茂鶴、680円。これがまた合うねん。",
+    plan: "飲み放題はな、2,500円と4,000円があるで。2,500円は焼鳥5本盛りかサムギョプサルハーフ。4,000円はコース仕立てで、品数が増えるわ。90分でラストオーダー、120分制や。",
+    reserve: "予約は電話 06-6468-2271 な。気軽にかけといで。",
+    thanks: "おおきに！また来てな、待ってるで。",
+    hours: "営業時間と休みは、店主の古賀に聞いてや。電話は 06-6468-2271 やで。",
+    fallback: "ん？ すまんな、もう一回言うてくれるか。おすすめ、プラン、予約、雑談、どれや？"
+  }
+};
+var CHATS = {
+  normal: [
+    "今日も焼鳥がよく焼けています。カウンター5席とテーブル2つの小さな店ですが、その分、焼きたてをすぐお出しできます。",
+    "ここ、ばいかは、昔ながらの商店街が残る町です。お近くでしたら、また気軽に寄ってくださいね。",
+    "店主の古賀は、毎晩この店で焼鳥を焼いています。見かけたら、声をかけてもらうと喜びます。",
+    "焼鳥は焼きたてが一番です。少しお時間をいただくこともありますが、その分おいしく焼き上げます。"
+  ],
+  katabutsu: [
+    "本日も、炭火の具合は良好でございます。一本ずつ、丁寧に焼き上げております。",
+    "当店はカウンター5席、テーブル2卓の、小さな店でございます。静かにお食事をお楽しみいただけます。",
+    "店主の古賀は、接客にも力を入れております。何かございましたら、遠慮なくお申し付けください。"
+  ],
+  ojisan: [
+    "焼鳥はな、焼く人の愛情で味が変わるねん。知らんけど。",
+    "ワイの仕事はな、喋って、お客さんに笑うてもらうことや。焼くのは店主の仕事やけどな。",
+    "此花区はええとこやで。祭りも多いし、人情もあるし。住んだら分かるわ。",
+    "今日はよぉ喋るわ、ワイ。たまにはこんな日もあるねん。"
+  ]
+};
+var ENGLISH = "Welcome to Yakitori Yasumaro! Please order from the QR code on your table. All-you-can-drink plans start at 2,500 yen. Enjoy your meal!";
+
+var mouthAnim = null, mouthT0 = 0, chatIdx = { normal: 0, katabutsu: 0, ojisan: 0 };
+function setBubble(t) { var b = document.getElementById("bubble"); b.textContent = t; b.scrollTop = 0; }
+function mouthStart() {
+  mouthStop();
+  mouthT0 = performance.now();
+  document.getElementById("facewrap").classList.add("speaking");
+  var m = document.getElementById("mouth");
+  var step = function (t) {
+    var s = Math.abs(Math.sin((t - mouthT0) / 95));
+    m.setAttribute("ry", (3.5 + 9.5 * s).toFixed(1));
+    m.setAttribute("rx", (18 + 4 * s).toFixed(1));
+    mouthAnim = requestAnimationFrame(step);
+  };
+  mouthAnim = requestAnimationFrame(step);
+}
+function mouthStop() {
+  if (mouthAnim) { cancelAnimationFrame(mouthAnim); mouthAnim = null; }
+  var m = document.getElementById("mouth");
+  m.setAttribute("ry", 6); m.setAttribute("rx", 20);
+  document.getElementById("facewrap").classList.remove("speaking");
+}
+function speak(text, lang) {
+  try {
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    var p = document.getElementById("persona").value;
+    u.lang = lang || "ja-JP";
+    if ((lang || "ja-JP") === "ja-JP") {
+      if (p === "katabutsu") { u.rate = 0.88; u.pitch = 0.75; }
+      else if (p === "ojisan") { u.rate = 1.06; u.pitch = 1.05; }
+      else { u.rate = 0.98; u.pitch = 0.95; }
+    }
+    u.onstart = mouthStart;
+    u.onend = mouthStop;
+    u.onerror = mouthStop;
+    setBubble(text);
+    speechSynthesis.speak(u);
+  } catch (e) { setBubble(text); }
+}
+
+var BRAIN_URL = "https://script.google.com/macros/s/AKfycbwYQokm5y1zUReC7At8t58ngoMkiF2rFDX3bu4jYLYhgN9zKtFkpZ8Ys8MDUubfVfgJ/exec";
+var AVATAR_TOKEN = "ysm-bf006e43";
+var DRAFT = null;
+function myTable() { var s = document.getElementById("tableSel"); return s ? s.value : "カウンター1"; }
+function showDraft(d) {
+  DRAFT = d;
+  var card = document.getElementById("draftCard");
+  if (!d) { card.style.display = "none"; return; }
+  document.getElementById("draftItems").innerHTML = d.items.map(function (it) {
+    return '<div style="display:flex;justify-content:space-between"><span>' + it.name + (it.opt ? "（" + it.opt + "）" : "") + " × " + it.qty + '</span><span>¥' + (it.price * it.qty).toLocaleString() + "</span></div>";
+  }).join("");
+  document.getElementById("draftTotal").textContent = "合計 ¥" + d.total.toLocaleString();
+  card.style.display = "block";
+}
+function brainAsk(text) {
+  var p = document.getElementById("persona").value;
+  setBubble("…考え中");
+  fetch(BRAIN_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ token: AVATAR_TOKEN, text: text, persona: p, table: myTable() }) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { if (j && j.draft) showDraft(j.draft); speak((j && j.reply) || TEXTS[p].fallback); })
+    .catch(function () { speak(TEXTS[p].fallback); });
+}
+var rec = null;
+var YK = {
+  place: function () {
+    if (!DRAFT) return;
+    var btn = document.getElementById("placeBtn");
+    btn.disabled = true; btn.textContent = "送信中…";
+    var submitId = "av" + Date.now() + Math.floor(Math.random() * 100000);
+    fetch(BRAIN_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ token: AVATAR_TOKEN, action: "place", table: myTable(), items: DRAFT.items.map(function (it) { return { id: it.id, opt: it.opt, qty: it.qty }; }), submitId: submitId }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        btn.disabled = false; btn.textContent = "この内容で注文する";
+        if (j && j.ok) { showDraft(null); speak("ご注文を承りました。ありがとうございます。"); }
+        else { speak("すみません、注文が送れませんでした。店主にお声がけください。"); }
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = "この内容で注文する"; speak("すみません、注文が送れませんでした。店主にお声がけください。"); });
+  },
+  dropDraft: function () { showDraft(null); setBubble("注文をやめました。他に何かあれば声をかけてください。"); },
+  say: function (kind) {
+    var p = document.getElementById("persona").value;
+    if (kind === "english") { speak(ENGLISH, "en-US"); return; }
+    if (kind === "chat") {
+      var arr = CHATS[p];
+      speak(arr[chatIdx[p] % arr.length]);
+      chatIdx[p]++;
+      return;
+    }
+    speak(TEXTS[p][kind] || TEXTS.normal[kind]);
+  },
+  sendText: function () { var el = document.getElementById("chatText"); var t = (el.value || "").trim(); if (!t) return; el.value = ""; if (BRAIN_URL) { brainAsk(t); } else { setBubble("頭脳がまだつながっていません。今は下のボタンの会話だけです。"); } },
+  stop: function () { try { speechSynthesis.cancel(); } catch (e) {} mouthStop(); },
+  talk: function () {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var btn = document.getElementById("talkBtn");
+    if (!SR) { setBubble("この端末・ブラウザでは聞き取りが使えませんでした。下のボタンの「雑談」でも遊べます。"); return; }
+    if (rec) { rec.stop(); return; }
+    rec = new SR();
+    rec.lang = "ja-JP";
+    rec.interimResults = false;
+    btn.classList.add("rec"); btn.textContent = "🎤 聞き取り中…";
+    rec.onresult = function (ev) {
+      var t = ev.results[0][0].transcript || "";
+      if (BRAIN_URL) { brainAsk(t); return; }
+      var p = document.getElementById("persona").value;
+      var T = TEXTS[p];
+      if (/おすすめ|人気/.test(t)) speak(T.recommend);
+      else if (/プラン|飲み放題|コース/.test(t)) speak(T.plan);
+      else if (/予約|よやく/.test(t)) speak(T.reserve);
+      else if (/英語|english/i.test(t)) speak(ENGLISH, "en-US");
+      else if (/何時|営業|休み|定休日/.test(t)) speak(T.hours);
+      else if (/ありがとう|おおきに/.test(t)) speak(T.thanks);
+      else if (/店主|古賀|マスター/.test(t)) speak(CHATS[p][2] || CHATS[p][0]);
+      else if (/こんにちは|いらっしゃい|hello/i.test(t)) speak(T.greet);
+      else if (/天気|元気|暇|話|雑談|おもしろ|面白|冗談/.test(t)) YK.say("chat");
+      else speak(T.fallback);
+    };
+    rec.onend = function () { rec = null; btn.classList.remove("rec"); btn.textContent = "🎤 話しかける"; };
+    rec.onerror = rec.onend;
+    try { rec.start(); } catch (e) { rec = null; btn.classList.remove("rec"); btn.textContent = "🎤 話しかける"; }
+  }
+};
+(function () {
+  var s = document.getElementById("tableSel");
+  if (!s) return;
+  try { var v = localStorage.getItem("ysm_table_v4"); if (v) s.value = v; } catch (e) {}
+  s.addEventListener("change", function () { try { localStorage.setItem("ysm_table_v4", s.value); } catch (e) {} });
+})();
+</script>
+</body>
+</html>
